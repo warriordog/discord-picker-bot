@@ -34,34 +34,49 @@ namespace DiscordPickerBot
 
             // Register event handler
             _discord.MessageCreated += HandleMessage;
-            
+
             // Log when bot joins a server.
-            _discord.GuildCreated += (_, e) => 
+            _discord.GuildCreated += async (_, e) => 
             {
-                _logger.LogInformation($"Joined server {e.Guild.Id} ({e.Guild.Name})");
-                return Task.CompletedTask;
+                // Log when we join a new server
+                _logger.LogInformation($"Joined new server {e.Guild.Id} ({e.Guild.Name}).");
+                
+                // Preload the member list
+                await e.Guild.RequestMembersAsync();
+            };
+
+            _discord.GuildAvailable += async (_, e) =>
+            {
+                // Log when we join an existing server
+                _logger.LogInformation($"Logged into existing server {e.Guild.Id} ({e.Guild.Name}).");
+                
+                // Preload the member list
+                await e.Guild.RequestMembersAsync();
             };
         }
 
-        private async Task HandleMessage(DiscordClient sender, MessageCreateEventArgs e)
+        private async Task HandleMessage(DiscordClient client, MessageCreateEventArgs e)
         {
             using (_logger.BeginScope("HandleMessage"))
             {
                 try
                 {
                     // Don't reply to ourself
-                    if (e.Author.Equals(sender.CurrentUser)) return;
+                    if (e.Author.Equals(client.CurrentUser)) return;
                     
-                    // We only run in guilds, no DMs
+                    // Don't run in bots
                     if (e.Channel.IsPrivate) return;
-                
+                    
+                    // Don't reply to bots
+                    if (e.Message.Author.IsBot) return;
+                    
                     // Check for trigger message
                     if (!e.Message.Content.ToLower().Contains("pick!")) return;
                     
                     _logger.LogDebug("Invoked by [{user}]", e.Message.Author);
                 
                     // Get current member (user from current channel)
-                    var currentMember = e.Channel.Users.FirstOrDefault(mbr => mbr.Equals(sender.CurrentUser));
+                    var currentMember = e.Channel.Users.FirstOrDefault(mbr => mbr.Equals(client.CurrentUser));
                 
                     // Check for chat permissions
                     if (currentMember == null || !e.Channel.PermissionsFor(currentMember).HasPermission(Permissions.SendMessages))
