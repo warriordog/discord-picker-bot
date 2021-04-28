@@ -1,2 +1,2 @@
-# DiscordEightBallBot
-8-ball bot for discord
+# DiscordPickerBot
+Discord bot that picks random people from the server. Responds to `pick!`.
